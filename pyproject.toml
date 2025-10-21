@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "terminal-chat-client"
+version = "1.0.0"
+description = "A secure end-to-end encrypted terminal-based chat client"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Fuad Muhammed", email = "fuad@example.com"}
+]
+keywords = ["chat", "terminal", "encryption", "e2e", "websocket", "textual"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Communications :: Chat",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+]
+
+dependencies = [
+    "textual>=0.44.1",
+    "aiohttp>=3.9.1",
+    "websockets>=12.0",
+    "cryptography>=43.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.0.0",
+    "twine>=4.0.0",
+]
+
+[project.urls]
+"Homepage" = "https://terminal-chat.fuadmuhammed.com"
+"Source" = "https://github.com/Fuad-Muhammed/terminal-chat-client"
+"Bug Reports" = "https://github.com/Fuad-Muhammed/terminal-chat-client/issues"
+"Server" = "https://github.com/Fuad-Muhammed/terminal-chat-server"
+
+[project.scripts]
+terminal-chat = "client.main:main"
+
+[tool.setuptools]
+packages = ["client"]
+
+[tool.setuptools.package-data]
+client = ["*.py"]

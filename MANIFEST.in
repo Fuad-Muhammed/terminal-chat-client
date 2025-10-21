@@ -1,0 +1,36 @@
+# Include important documentation
+include README-CLIENT.md
+include LICENSE
+include pyproject.toml
+include setup.py
+
+# Include client and shared packages
+recursive-include client *.py
+recursive-include shared *.py
+
+# Exclude server files (not needed for client package)
+recursive-exclude server *
+
+# Exclude development and testing files
+recursive-exclude tests *
+recursive-exclude docs *
+exclude .env
+exclude .env.example
+exclude .gitignore
+exclude docker-compose.yml
+exclude Dockerfile
+exclude .dockerignore
+
+# Exclude build artifacts
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .pytest_cache
+recursive-exclude * .DS_Store
+exclude *.db
+exclude *.sqlite
+exclude *.sqlite3
+
+# Exclude development files
+exclude CLAUDE.md
+exclude IMPLEMENTATION_PLAN.md
+exclude requirements.txt
