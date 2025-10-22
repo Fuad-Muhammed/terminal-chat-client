@@ -108,14 +108,10 @@ class ChatClient:
             # Connect
             await self.connection.connect()
 
-            # Show encryption info
+            # Set up typing indicator callback
             chat_screen = self.app.get_chat_screen()
             if chat_screen:
-                from pathlib import Path
-                key_path = Path.home() / ".terminal-chat" / "encryption.key"
-                chat_screen.add_system_message("End-to-end encryption enabled")
-                chat_screen.add_system_message(f"Key location: {key_path}")
-
+                chat_screen.add_system_message("End-to-end encryption enabled (RSA + Fernet)")
                 # Set up typing indicator callback
                 chat_screen.set_typing_indicator_callback(self.handle_typing_indicator_sync)
 
@@ -219,10 +215,7 @@ class ChatClient:
                 # Decrypt and set session key
                 self.encryption.set_session_key_encrypted(encrypted_session_key)
 
-                chat_screen.add_system_message("Secure key exchange completed")
-                from pathlib import Path
-                private_key_path = Path.home() / ".terminal-chat" / "private.key"
-                chat_screen.add_system_message(f"Private key: {private_key_path}")
+                chat_screen.add_system_message("Secure session key received and decrypted")
 
             except Exception as e:
                 chat_screen.add_system_message(f"Key exchange failed: {str(e)}")

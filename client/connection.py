@@ -167,6 +167,16 @@ class ChatConnection:
             if self.message_callback:
                 self.message_callback(message_data)
 
+        elif message_type == "key_exchange":
+            # Key exchange message - pass to callback
+            if self.message_callback:
+                self.message_callback(message_data)
+
+        elif message_type == "key_rotation":
+            # Key rotation message - pass to callback
+            if self.message_callback:
+                self.message_callback(message_data)
+
         elif message_type == "user_joined":
             # User joined notification
             if self.message_callback:
@@ -189,6 +199,11 @@ class ChatConnection:
 
         elif message_type == "typing":
             # Typing indicator from another user
+            if self.message_callback:
+                self.message_callback(message_data)
+
+        elif message_type == "system":
+            # System message from server
             if self.message_callback:
                 self.message_callback(message_data)
 
