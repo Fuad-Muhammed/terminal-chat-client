@@ -45,13 +45,15 @@ class TestClientEncryption:
         """Test that encryption key persists across instances"""
         key_path = os.path.join(temp_config_dir, "persistent.key")
 
-        # First instance
-        enc1 = MessageEncryption(key_path=key_path)
+        # First instance - generate and save key
+        key = MessageEncryption.generate_and_save_key(key_path)
+        enc1 = MessageEncryption(key=key)
         plaintext = "Test message"
         encrypted = enc1.encrypt(plaintext)
 
-        # Second instance with same key path
-        enc2 = MessageEncryption(key_path=key_path)
+        # Second instance with same key loaded from file
+        loaded_key = MessageEncryption.load_key(key_path)
+        enc2 = MessageEncryption(key=loaded_key)
         decrypted = enc2.decrypt(encrypted)
 
         assert decrypted == plaintext
@@ -61,8 +63,12 @@ class TestClientEncryption:
         key_path1 = os.path.join(temp_config_dir, "key1.key")
         key_path2 = os.path.join(temp_config_dir, "key2.key")
 
-        enc1 = MessageEncryption(key_path=key_path1)
-        enc2 = MessageEncryption(key_path=key_path2)
+        # Generate two different keys
+        key1 = MessageEncryption.generate_and_save_key(key_path1)
+        key2 = MessageEncryption.generate_and_save_key(key_path2)
+
+        enc1 = MessageEncryption(key=key1)
+        enc2 = MessageEncryption(key=key2)
 
         plaintext = "Secret"
         encrypted = enc1.encrypt(plaintext)

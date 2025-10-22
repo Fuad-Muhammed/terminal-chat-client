@@ -27,7 +27,9 @@ def temp_config_dir():
 def encryption_key(temp_config_dir):
     """Create a temporary encryption key for testing"""
     key_path = os.path.join(temp_config_dir, "test_encryption.key")
-    encryption = MessageEncryption(key_path=key_path)
+    # Generate and save a key, then create MessageEncryption with it
+    key = MessageEncryption.generate_and_save_key(key_path)
+    encryption = MessageEncryption(key=key)
     return encryption
 
 

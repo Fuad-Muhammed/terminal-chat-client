@@ -208,7 +208,7 @@ class ChatConnection:
                 self.status_callback("reconnected")
         except Exception as e:
             # Exponential backoff
-            self.reconnect_delay = min(self.reconnect_delay * 2, self.max_reconnect_delay)
+            self.increase_reconnect_delay()
 
             if self.status_callback:
                 self.status_callback(f"reconnect_failed: {e}")
@@ -223,3 +223,7 @@ class ChatConnection:
     def on_status_change(self, callback: Callable):
         """Register a callback for connection status changes"""
         self.status_callback = callback
+
+    def increase_reconnect_delay(self):
+        """Increase reconnect delay with exponential backoff"""
+        self.reconnect_delay = min(self.reconnect_delay * 2, self.max_reconnect_delay)

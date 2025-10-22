@@ -165,8 +165,12 @@ class TestClientConfig:
             with open(config_file, 'w') as f:
                 json.dump(test_config, f)
 
-            config = ClientConfig()
-            assert config.ws_url == "wss://secure-server.com"
+            # Remove the environment variable that overrides config
+            with patch.dict(os.environ, {}, clear=False):
+                if "CHAT_SERVER_URL" in os.environ:
+                    del os.environ["CHAT_SERVER_URL"]
+                config = ClientConfig()
+                assert config.ws_url == "wss://secure-server.com"
 
     def test_save_config(self, temp_config_dir):
         """Test saving configuration to file"""

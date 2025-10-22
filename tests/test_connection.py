@@ -40,14 +40,15 @@ class TestChatConnection:
         status_callback = Mock()
         connection.status_callback = status_callback
 
-        with patch('websockets.connect', return_value=mock_ws) as mock_connect:
-            await connection.connect()
+        with patch('websockets.connect', new_callable=AsyncMock, return_value=mock_ws) as mock_connect:
+            with patch.object(connection, 'receive_messages', new_callable=AsyncMock):
+                await connection.connect()
 
-            assert connection.connected is True
-            assert connection.running is True
-            assert connection.websocket == mock_ws
-            status_callback.assert_called_with("connected")
-            mock_connect.assert_called_once()
+                assert connection.connected is True
+                assert connection.running is True
+                assert connection.websocket == mock_ws
+                status_callback.assert_called_with("connected")
+                mock_connect.assert_called_once()
 
     async def test_connect_failure(self, connection):
         """Test connection failure handling"""
@@ -70,9 +71,12 @@ class TestChatConnection:
         connection.websocket = mock_ws
         connection.connected = True
         connection.running = True
-        connection.receive_task = Mock()
-        connection.receive_task.cancel = Mock()
-        connection.receive_task.__await__ = Mock(return_value=iter([]))
+
+        # Create a proper asyncio task that can be awaited and cancelled
+        async def dummy_receive():
+            await asyncio.sleep(0)
+
+        connection.receive_task = asyncio.create_task(dummy_receive())
 
         status_callback = Mock()
         connection.status_callback = status_callback
@@ -196,8 +200,8 @@ class TestChatConnection:
             "username": "user1"
         }
 
-        # Simulate receiving message
-        await connection.handle_message(json.dumps(test_message))
+        # Simulate receiving message (handle_message expects a dict, not JSON string)
+        await connection.handle_message(test_message)
 
         message_callback.assert_called_once_with(test_message)
 
@@ -241,7 +245,8 @@ class TestChatConnection:
         connection.connected = True
 
         ping_message = {"type": "ping"}
-        await connection.handle_message(json.dumps(ping_message))
+        # handle_message expects a dict, not JSON string
+        await connection.handle_message(ping_message)
 
         # Should send pong response
         mock_ws.send.assert_called()
