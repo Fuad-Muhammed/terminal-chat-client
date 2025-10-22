@@ -9,7 +9,7 @@ from typing import Dict, Any
 from .ui import ChatApp, ChatScreen
 from .connection import ChatConnection
 from .config import get_config
-from .crypto import get_or_create_encryption
+from .crypto import ClientEncryption
 
 
 class ChatClient:
@@ -29,8 +29,8 @@ class ChatClient:
         self.username: str = None
         self.token: str = None
 
-        # Initialize encryption
-        self.encryption = get_or_create_encryption()
+        # Initialize new encryption system with RSA key pair
+        self.encryption = ClientEncryption()
 
         # Set up callbacks
         self.app.set_login_callback(self.handle_login_sync)
@@ -54,6 +54,10 @@ class ChatClient:
             async with aiohttp.ClientSession() as session:
                 endpoint = f"{self.server_url}/api/{action}"
                 data = {"username": username, "password": password}
+
+                # Include public key for registration
+                if action == "register":
+                    data["public_key"] = self.encryption.get_public_key_b64()
 
                 try:
                     async with session.post(endpoint, json=data, timeout=aiohttp.ClientTimeout(total=10)) as response:
@@ -156,7 +160,10 @@ class ChatClient:
                                 # Decrypt message content
                                 encrypted_content = msg.get("content")
                                 try:
-                                    content = self.encryption.decrypt(encrypted_content)
+                                    if self.encryption.has_session_key():
+                                        content = self.encryption.decrypt_message(encrypted_content)
+                                    else:
+                                        content = f"[Waiting for key exchange...]"
                                 except Exception as e:
                                     content = f"[Decryption failed]"
 
@@ -193,11 +200,52 @@ class ChatClient:
 
             # Decrypt the message
             try:
-                content = self.encryption.decrypt(encrypted_content)
+                if self.encryption.has_session_key():
+                    content = self.encryption.decrypt_message(encrypted_content)
+                else:
+                    content = f"[Waiting for key exchange...]"
             except Exception as e:
                 content = f"[Decryption failed: {str(e)}]"
 
             chat_screen.add_message(username, content, timestamp)
+
+        elif message_type == "key_exchange":
+            # Key exchange message - decrypt and set session key
+            import base64
+            try:
+                encrypted_session_key_b64 = message_data.get("encrypted_session_key", "")
+                encrypted_session_key = base64.b64decode(encrypted_session_key_b64)
+
+                # Decrypt and set session key
+                self.encryption.set_session_key_encrypted(encrypted_session_key)
+
+                chat_screen.add_system_message("Secure key exchange completed")
+                from pathlib import Path
+                private_key_path = Path.home() / ".terminal-chat" / "private.key"
+                chat_screen.add_system_message(f"Private key: {private_key_path}")
+
+            except Exception as e:
+                chat_screen.add_system_message(f"Key exchange failed: {str(e)}")
+
+        elif message_type == "key_rotation":
+            # Key rotation message - decrypt and update session key
+            import base64
+            try:
+                encrypted_session_key_b64 = message_data.get("encrypted_session_key", "")
+                encrypted_session_key = base64.b64decode(encrypted_session_key_b64)
+
+                # Decrypt and set new session key
+                self.encryption.set_session_key_encrypted(encrypted_session_key)
+
+                chat_screen.add_system_message("Session key rotated successfully")
+
+            except Exception as e:
+                chat_screen.add_system_message(f"Key rotation failed: {str(e)}")
+
+        elif message_type == "system":
+            # System message
+            content = message_data.get("content", "")
+            chat_screen.add_system_message(content)
 
         elif message_type == "user_joined":
             # User joined notification
@@ -261,9 +309,47 @@ class ChatClient:
                 # Silently fail for typing indicators
                 pass
 
+    async def request_key_rotation(self):
+        """Request manual key rotation from server"""
+        chat_screen = self.app.get_chat_screen()
+
+        if not self.connection or not self.connection.connected:
+            if chat_screen:
+                chat_screen.add_system_message("Cannot rotate key: Not connected to server")
+            return
+
+        try:
+            # Send key rotation request to server
+            import json
+            rotation_request = json.dumps({
+                "type": "rotate_key_request",
+                "room_id": "general"
+            })
+
+            await self.connection.websocket.send(rotation_request)
+
+            if chat_screen:
+                chat_screen.add_system_message("Key rotation requested...")
+
+        except Exception as e:
+            if chat_screen:
+                chat_screen.add_system_message(f"Failed to request key rotation: {str(e)}")
+
     async def send_message(self, message: str):
         """Handle sending a message"""
         try:
+            # Check for /rotate-key command
+            if message.strip() == "/rotate-key":
+                await self.request_key_rotation()
+                return
+
+            # Check if session key is set
+            if not self.encryption.has_session_key():
+                chat_screen = self.app.get_chat_screen()
+                if chat_screen:
+                    chat_screen.add_system_message("Waiting for key exchange to complete...")
+                return
+
             # Validate message length
             if len(message) > 5000:
                 chat_screen = self.app.get_chat_screen()
@@ -274,7 +360,7 @@ class ChatClient:
             if self.connection and self.connection.connected:
                 try:
                     # Encrypt message before sending
-                    encrypted_message = self.encryption.encrypt(message)
+                    encrypted_message = self.encryption.encrypt_message(message)
                     await self.connection.send_message(encrypted_message)
                 except Exception as e:
                     chat_screen = self.app.get_chat_screen()
@@ -282,7 +368,7 @@ class ChatClient:
                         chat_screen.add_system_message(f"Failed to send message - will retry when reconnected")
                         # Queue the message for retry
                         if self.connection:
-                            encrypted_message = self.encryption.encrypt(message)
+                            encrypted_message = self.encryption.encrypt_message(message)
                             await self.connection.send_message(encrypted_message)
             else:
                 chat_screen = self.app.get_chat_screen()
@@ -291,7 +377,7 @@ class ChatClient:
                     # Still try to queue the message (encrypt it first)
                     if self.connection:
                         try:
-                            encrypted_message = self.encryption.encrypt(message)
+                            encrypted_message = self.encryption.encrypt_message(message)
                             await self.connection.send_message(encrypted_message)
                         except Exception as e:
                             chat_screen.add_system_message(f"Failed to queue message: {str(e)}")
